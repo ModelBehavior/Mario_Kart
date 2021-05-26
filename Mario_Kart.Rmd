@@ -1,0 +1,162 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Mario Kart 64 World Records
+# Exploratory Analysis
+
+# Questions
++ How did the world records develop over time?
++ Which track is the fastest?
++ For which track did the world record improve the most?
++ For how many tracks have shortcuts been discovered?
++ When were shortcuts discovered?
++ On which track does the shortcut save the most time?
++ Which is the longest standing world record?
++ Who is the player with the most world records?
++ Who are recent players?
+
+# Data
+Tidytuesday data set can be found [here](https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-05-25/readme.md). 
+
+# Methodology
+Use R tidyverse to explore and make vizualizations for tidytuesday data
+
+# Results
+
+# Limitations and Next Steps
+Making interactive plots would be the next step.
+
+```{r setup, echo=FALSE,include=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(include = FALSE,echo = FALSE,warning = FALSE)
+
+records <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/records.csv')
+drivers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-25/drivers.csv')
+
+head(records)
+head(drivers)
+```
+
+```{r records-over-time}
+p1 <- records %>% 
+  left_join(drivers,by="player") %>% 
+  group_by(year) %>% 
+  summarise(records = mean(records,na.rm=TRUE)) %>% 
+  ggplot(aes(year,records)) +
+  geom_line(color="darkgreen") + 
+  ggthemes::theme_hc() +
+  labs(y = "Average Records",
+       title = "Average Records Over Time")
+
+# Seems the records went down after year 2000
+```
+
+```{r fastest-track}
+records %>% 
+  group_by(track) %>% 
+  summarise(time = median(time)) %>% 
+  ggplot(aes(reorder(track,time),time)) +
+  geom_col(fill="darkgreen") +
+  coord_flip() +
+  ggthemes::theme_hc() +
+  labs(y = "Median Time(s)",
+       x = "",
+       title = "Median Time per Track")
+
+p2 <- records %>% 
+  group_by(track) %>% 
+  summarise(time = mean(time)) %>% 
+  ggplot(aes(reorder(track,time),time)) +
+  geom_col(fill="darkgreen") +
+  coord_flip() +
+  ggthemes::theme_hc() +
+  labs(y = "Average Time(seconds)",
+       x = "",
+       title = "Average Time per Track")
+```
+
+```{r shortcut-discovered}
+# 12 tracks have shortcuts
+records %>% 
+  mutate(shortcut = as.factor(shortcut),
+         track = as.factor(track)) %>% 
+  group_by(track) %>% 
+  summarise(shortcut = sum(shortcut == "Yes")) %>% 
+  arrange(shortcut)
+```
+
+```{r save-most-time}
+p3 <- records %>% 
+  ggplot(aes(reorder(track,time),time)) +
+  geom_col(aes(fill=shortcut),position = "dodge") +
+  coord_flip() +
+  facet_wrap(~shortcut) +
+  theme(legend.position = "none") +
+  labs(x = "",
+       title = "Time For Each Track by Shortcut")
+
+records %>% 
+  mutate(track = as.factor(track),
+         shortcut= as.factor(shortcut)) %>% 
+  filter(track != "Banshee Boardwalk",
+         track != "Bowser's Castle",
+         track!="Koopa Troopa Beach",
+         track != "Moo Moo Farm") %>%  # Remove tracks with no shortcuts
+  group_by(track) %>% 
+  summarise(total_time_no = sum(time[shortcut=="No"]),
+            total_time_yes = sum(time[shortcut=="Yes"]),
+            dtime = sum(time[shortcut=="No"]-time),
+            mean_time_no = mean(time[shortcut=="No"]),
+            mean_time_yes = mean(time[shortcut=="Yes"]),
+            diff_mean_time = mean_time_no - mean_time_yes) %>% 
+  ggplot(aes(reorder(track,diff_mean_time),diff_mean_time)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "",
+       y = "Difference in Mean Time",
+       title = "Mean Difference by Shortcut For Each Track") +
+  ggthemes::theme_hc()
+  
+```
+
+```{r longest-record}
+p4 <- records %>% 
+  left_join(drivers,by="player") %>% 
+  group_by(track,player) %>% 
+  summarise(max = max(record_duration)) %>% 
+  arrange(desc(max)) %>% 
+  head() %>% 
+  ggplot(aes(track,max,fill=player)) +
+  geom_col(position = "dodge") + 
+  coord_flip() + 
+  scale_fill_manual(values= wesanderson::wes_palette(n=4, name="GrandBudapest1")) +
+  ggthemes::theme_hc() +
+  labs(x = "",
+       y = "Max Record Duration",
+       title = "Max Record Duration by Track and Player")
+  
+```
+
+```{r players-with-the-most-world-records}
+p5 <- drivers %>% 
+  group_by(player) %>%
+  summarise(record_count = sum(records,na.rm = TRUE)) %>% 
+  arrange(desc(record_count)) %>% 
+  head(5) %>% 
+  ggplot(aes(reorder(player,record_count),record_count,fill=player)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "",
+       y = "Record Count",
+       title = "Top 5 players with the most world records") +
+  ggthemes::theme_hc() +
+  scale_fill_manual(values= wesanderson::wes_palette(n=5, name="BottleRocket1")) +
+  theme(legend.position = "none")
+```
+
+```{r arrange-plots, fig.height=5}
+ggpubr::ggarrange(p1,p2,p3,p4,p5,ncol=2,nrow = 3)
+```
+
