@@ -19,7 +19,7 @@ Tidytuesday data set can be found [here](https://github.com/rfordatascience/tidy
 Use R tidyverse to explore and make vizualizations for tidytuesday data
 
 # Results
-![](/images/project5_img)
+![](https://github.com/ModelBehavior/Shawn_Portfolio/blob/main/images/project5_img)
 
 # Limitations and Next Steps
 Making interactive plots would be the next step.
